@@ -45,15 +45,12 @@ def view_pat():
         image_file = nb.load(first_img)
         app.image = image_file.get_fdata()
 
-    current_CNR = patient_overview.loc[patient_overview['Patient']==app.Patient, 'CNR'].values[0]
-    print(app.Patient)
-    print(current_CNR)
+    current_CNR = round(patient_overview.loc[patient_overview['Patient']==app.Patient, 'CNR'].values[0],2)
     if math.isnan(current_CNR):
         current_CNR = 'None'
     app.to_view = int((50)/100 * app.image.shape[2])
     visualizer = app.image[:,:,app.to_view]
-    #visualizer = visualizer.resize((220,220))
-    #app.photo = ImageTk.PhotoImage(image = Image.fromarray(visualizer))
+
     plot1.clear()
     plot1.imshow(visualizer[:,:], cmap = cm.Greys_r)
     plot1.title.set_text(f'{os.path.basename(app.Patient)} with CNR: {current_CNR}')
@@ -68,13 +65,14 @@ def view_pat():
         app.scale_loaded = True
 
 def next_pat():
+    print(app.Patients)
+    print(not app.Patients)
+    if not app.Patients:
+        tk.messagebox.showerror(title='Error', message='No more patients in spreadsheet')
+        return
     app.Patient = app.Patients.pop(0)
     while not isinstance(app.Patient,str):
-        app.Patient = app.Patients.pop(0)
-        if not app.Patient:
-            tkinter.messagebox.showerror(title='Error', message='No more patients in spreadsheet', **options)
-            return
-
+        app.Patient = app.Patients.pop(0)   
     view_pat()
 
 def next_img(i):
@@ -124,7 +122,7 @@ def use_points():
         z = file_path.split('.')
         save_path = z[0]+suffix +'.'+z[1]
 
-    patient_overview.to_excel(save_path)
+    patient_overview.to_excel(save_path, index = False)
 
     #plot1.clf()
     plot1.clear()
@@ -177,34 +175,24 @@ def get_CNR(image_data,signal_pts,myo_pts,slicez,area_of_interest_radius = 8):
     CNR = abs(signal1_mean - signal2_mean)/signal2_std
     return CNR
 
-
-def place_holder():
-    pass
-
+# Initiate the widget
 app = tk.Tk()
-
 app.geometry("700x600")
-
 app.title("CNR Analyzer")
 
+# Set some variables
 app.scale_loaded = False
+app.blood_pool_pts = []
+app.myo_pts = []
+button_width = 9
 
+# Add UI elements
 frame = tk.Frame(app, width=200, height=200)
 frame.pack(padx = 30, pady = 10, fill='both')
 
 fig = Figure()
 plot1 = fig.add_subplot(111)
 canvas = FigureCanvasTkAgg(fig, master=frame)
-
-full_width = 515 - 120
-full_height = 430 - 60
-
-print(full_width,full_height)
-
-app.blood_pool_pts = []
-app.myo_pts = []
-
-button_width = 9
 
 load_button = tk.Button(text='Load xlsx', command = load_excel, width = button_width)
 load_button.place(relx = 0.15, rely=0.85, anchor = 'center')
@@ -215,7 +203,7 @@ next_button.place(relx=0.15, rely=0.9, anchor='center')
 confirm_button = tk.Button(text="Analyze points", command = use_points, width = button_width)#, command = accept_points)
 delete_pts_button = tk.Button(text="Redo points", command = redo_points, width = button_width)#, command = delete_points)
 
-pt_option = tk.StringVar(app)
+pt_option = tk.StringVar(app,value='Select One')
 in_pt_mode_var = tk.StringVar(app, 'off')
 
 in_pt_mode = tk.Radiobutton(app, text='Selection Mode', variable=in_pt_mode_var, value='on', width = button_width+5)
@@ -225,10 +213,13 @@ in_pt_mode = tk.Radiobutton(app, text='View Mode', variable=in_pt_mode_var, valu
 in_pt_mode.place(relx = 0.55, rely=0.85, anchor='center')
 
 point_type = tk.OptionMenu(app, pt_option, 'Blood Pool','Myocardium')
+point_type.config(bg='white',fg='black', width=8)
 point_type.place(relx=0.75, rely=0.87, anchor='center')
 
 
+# Make sensitive to clicking
 app.bind('<ButtonRelease-1>', select_spot)
 
+# Run the widget
 app.mainloop()
 
